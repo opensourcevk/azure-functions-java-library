@@ -15,7 +15,7 @@ pr:
 jobs:
   - job: "Build_And_Test_Java_Library_Windows"
     variables:
-      ApplicationInsightAgentVersion: 3.4.16
+      ApplicationInsightAgentVersion: 3.5.1
 
     pool:
       name: '1ES-Hosted-AzFunc'
@@ -59,6 +59,7 @@ jobs:
       env:
         AzureWebJobsStorage: $(AzureWebJobsStorage)
         AzureWebJobsCosmosDBConnectionString: $(AzureWebJobsCosmosDBConnectionString)
+        AzureWebJobsSqlConnectionString: $(AzureWebJobsSqlConnectionString)
         AzureWebJobsServiceBus: $(AzureWebJobsServiceBus)
         AzureWebJobsEventHubReceiver: $(AzureWebJobsEventHubReceiver)
         AzureWebJobsEventHubSender_2: $(AzureWebJobsEventHubSender_2)
