@@ -1,0 +1,16 @@
+jobs:
+  - job: "Build"
+    displayName: 'Build java library'
+
+    pool:
+      name: 1es-pool-azfunc-public
+      image: 1es-windows-2022 
+      os: windows
+
+    steps:
+    - pwsh: |
+        Write-Host "Java_HOME: $JAVA_HOME"
+        Get-Command mvn
+      displayName: 'Check Maven is installed'
+    - pwsh: '& .\build.ps1'
+      displayName: 'Build project with java library'
