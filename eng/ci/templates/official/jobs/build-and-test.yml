@@ -7,7 +7,7 @@ jobs:
       os: windows
 
     variables:
-      ApplicationInsightAgentVersion: 3.5.1
+      ApplicationInsightAgentVersion: 3.5.2
 
     steps:
     - task: NuGetToolInstaller@1
