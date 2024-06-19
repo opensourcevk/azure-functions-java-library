@@ -111,3 +111,85 @@ cmd.exe /c '.\..\..\mvnBuild.bat'
 StopOnFailedExecution
 Pop-Location -StackName "libraryDir"
 
+$ApplicationInsightsAgentVersion = '3.5.2'
+$ApplicationInsightsAgentFilename = "applicationinsights-agent-${ApplicationInsightsAgentVersion}.jar"
+$ApplicationInsightsAgentUrl = "https://repo1.maven.org/maven2/com/microsoft/azure/applicationinsights-agent/${ApplicationInsightsAgentVersion}/${ApplicationInsightsAgentFilename}"
+
+# Download application insights agent from maven central
+$ApplicationInsightsAgentFile = "$currDir/$ApplicationInsightsAgentFilename"
+
+# local testing cleanup
+if (Test-Path -Path $ApplicationInsightsAgentFile) {
+    Remove-Item -Path $ApplicationInsightsAgentFile
+}
+
+# local testing cleanup
+$oldOutput = [System.IO.Path]::Combine($currDir, "agent")
+if (Test-Path -Path $oldOutput) {
+    Remove-Item -Path $oldOutput -Recurse
+}
+
+# local testing cleanup
+$oldExtract = [System.IO.Path]::Combine($currDir, "extract")
+if (Test-Path -Path $oldExtract) {
+    Remove-Item -Path $oldExtract -Recurse
+}
+
+echo "Start downloading '$ApplicationInsightsAgentUrl' to '$currDir'"
+try {
+    Invoke-WebRequest -Uri $ApplicationInsightsAgentUrl -OutFile $ApplicationInsightsAgentFile
+} catch {
+    echo "An error occurred. Download fails" $ApplicationInsightsAgentFile
+    echo "Exiting"
+    exit 1
+}
+
+if (-not(Test-Path -Path $ApplicationInsightsAgentFile)) {
+    echo "$ApplicationInsightsAgentFile do not exist."
+    exit 1
+}
+
+$extract = new-item -type directory -force $currDir\extract
+if (-not(Test-Path -Path $extract)) {
+    echo "Fail to create a new directory $extract"
+    exit 1
+}
+
+echo "Start extracting content from $ApplicationInsightsAgentFilename to extract folder"
+cd -Path $extract -PassThru
+Start-Process -FilePath "cmd" -ArgumentList "/c jar xf $ApplicationInsightsAgentFile" -Wait 
+cd $currDir
+echo "Done extracting"
+
+echo "Unsign $ApplicationInsightsAgentFilename"
+Remove-Item $extract\META-INF\MSFTSIG.*
+$manifest = "$extract\META-INF\MANIFEST.MF"
+$newContent = (Get-Content -Raw $manifest | Select-String -Pattern '(?sm)^(.*?\r?\n)\r?\n').Matches[0].Groups[1].Value
+Set-Content -Path $manifest $newContent
+
+Remove-Item $ApplicationInsightsAgentFile
+if (-not(Test-Path -Path $ApplicationInsightsAgentFile)) {
+    echo "Delete the original $ApplicationInsightsAgentFilename successfully"
+} else {
+    echo "Fail to delete original source $ApplicationInsightsAgentFilename"
+    exit 1
+}
+
+$agent = new-item -type directory -force $currDir/agent
+$filename = "applicationinsights-agent.jar"
+$result = [System.IO.Path]::Combine($agent, $filename)
+echo "re-jar $filename"
+
+cd -Path $extract -PassThru
+jar cfm $result META-INF/MANIFEST.MF .
+
+if (-not(Test-Path -Path $result)) {
+    echo "Fail to re-archive $filename"
+    exit 1
+}
+
+Write-Host "Creating the functions.codeless file"
+New-Item -path $currDir\agent -type file -name "functions.codeless"
+
+Write-Host "Copying the unsigned Application Insights Agent to worker directory"
+Copy-Item "$currDir/agent" "$currDir/azure-functions-java-worker/Azure.Functions.Cli/workers/java" -Recurse -Verbose -Force
